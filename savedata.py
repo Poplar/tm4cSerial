@@ -14,7 +14,7 @@ def main():
     global stopflag
     strPort = '/dev/ttyACM0'
     #try: 
-    ser = serial.Serial(port=strPort,baudrate=115200,timeout=.05)
+    ser = serial.Serial(port=strPort,baudrate=115200,timeout=.1)
     #except:
         #print("Serial port did not open\n")
         #exit()
@@ -33,7 +33,8 @@ def main():
     kbdinput_thread = threading.Thread(target=kbdinput)
     kbdinput_thread.start()
     #send packet - 2 packing bytes, cmd = 1, speedin, chksum
-    send_data = struct.pack('>BBBfB',255,255,1,speedin, 254)
+    #send_data = struct.pack('>BBBfB',255,255,1,speedin, 254)
+    send_data = struct.pack('>BBBBBB', 255,255,72,69,76,76)
     #first loop
     #for x in range(1, 30000): #reads in 100 data points.
     ser.write(send_data)
