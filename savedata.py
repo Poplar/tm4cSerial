@@ -6,7 +6,7 @@ stopflag = False
 ser = 0
 def kbdinput():
     global stopflag
-    flaginput = input("Enter any value to stop")
+    flaginput = input("Press enter to stop")
     print("I'll stop now\n")
     stopflag = True
 
@@ -33,32 +33,40 @@ def main():
     kbdinput_thread = threading.Thread(target=kbdinput)
     kbdinput_thread.start()
     #send packet - 2 packing bytes, cmd = 1, speedin, chksum
-    #send_data = struct.pack('>BBBfB',255,255,1,speedin, 254)
-    send_data = struct.pack('>BBBBBB', 255,255,72,69,76,76)
+    #send_data = struct.pack('>BBBfB',255,255,1,speedin, 253)
+    #send_data = struct.pack('>BBBBBB', 255,255,72,69,76,76)
     #first loop
     #for x in range(1, 30000): #reads in 100 data points.
-    ser.write(send_data)
+    #ser.write(send_data)
     while(stopflag == False): 
-            line = ser.read(size=6)
-            while(len(line) < 6):
+            ser.write(struct.pack('>BBBfB',255,255,1,speedin, 253))
+            line = ser.read(size=8)
+            print(line)
+            sleep(.1)
+            while(len(line) < 8):
                 if(stopflag == True):
-                    print("I'll stop now too\n")
+                    print("Interrupted by keyboard input\n")
                     break
                 ser.write(send_data)
                 print(line)
-                print('\n')
                 print(send_data)
                 print('\n')
                 print("Error: not enough bytes sent in 50 ms\n")
                 
                 line = ser.read(size=6)
             #if(line[0] == 255 and line[1] == 255):
-            if(line[0] == 0xFF and line[1] == 0xFF):
+#            print(line)
+            if(ord(line[0]) == 255 and ord(line[1]) == 255):
                 cmd = line[2]
-                pwmin = (line[3] << 4) + line[4]
+                #pwmin = (line[3] << 4) + line[4]
+                #pwmin = struct.unpack('>f', line[3:-1])
+                pwmin = struct.unpack('>f', line[3:-1])
+                print(pwmin)
+
             else:
                 print("Error, wrong start sequence, or I suck at math.\n") 
             
+            #speedin = plant_simulate(pwmin)
             str1 = str1 + str(pwmin) + '\n'
 
     #clean()
