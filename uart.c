@@ -23,52 +23,18 @@ __error__(char *pcFilename, uint32_t ui32Line)
 }
 #endif
 
-
-void UARTSend(const uint8_t *pui8Buffer, uint32_t ui32Count)
-{
-  // Loop while there are more characters to send.
-  while(ui32Count--)
-  {
-    // Write the next character to the UART.
-    UARTCharPutNonBlocking(UART0_BASE, *pui8Buffer++);
-  }
-}
-
-
 void UARTIntHandler(void)
 {
-  uint32_t ui32Status;
-  uint8_t buff[100];
-  uint32_t index = 0,size;
-  // Get the interrrupt status.
-  ui32Status = UARTIntStatus(UART0_BASE, true);
-
-  // Clear the asserted interrupts.
-  UARTIntClear(UART0_BASE, ui32Status);
-
-  // loop while there are characters in the receive fifo.
-  while(UARTCharsAvail(UART0_BASE))
-  {
-    // read the next character from the uart and write it back to the uart.
-/*    uartcharputnonblocking(uart0_base,
-        uartchargetnonblocking(uart0_base)); */ //important part
-    
-    buff[index] = UARTCharGetNonBlocking(UART0_BASE);
-    index++;
-    size++;
-    /* blink led on receive; use for debug only
-    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, GPIO_PIN_0);
-    SysCtlDelay(g_ui32SysClock / (1000 * 3));
-    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 0); 
-    */
-  }
-  UARTSend(buff, size);
-  size = 0;
-  index = 0;
 }
 
+void delay(uint32_t cycles)
+{
+  volatile uint32_t i;
+  for (i = 0; i < cycles; i++)
+    ; // do nothing
+}
 
-int main(void)
+void setup(void)
 {
   // Set the clocking to run directly from the crystal at 120MHz.
   g_ui32SysClock = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ |
@@ -97,16 +63,94 @@ int main(void)
   UARTConfigSetExpClk(UART0_BASE, g_ui32SysClock, 115200,
       (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
        UART_CONFIG_PAR_NONE));
+}
 
-  // Enable the UART interrupt.
-  IntEnable(INT_UART0);
-  UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT);
+float doPID(float realVelocity, float targetVelocity)
+{
+  (void) realVelocity;
+  (void) targetVelocity;
 
-  // Prompt for text to be entered.
-  UARTSend((uint8_t *)"\033[2JEnter text: ", 16);
+  return 0;
+}
 
-  // Loop forever echoing data through the UART.
-  while(1)
-  {
+enum { CMD_STOP, CMD_CLOSEDLOOP, CMD_OPENLOOP };
+
+float encoderGetVelocity(void)
+{
+  return 0.0;
+}
+
+void setPWM(float dutyCycle)
+{
+  (void) dutyCycle;
+
+}
+
+void sendStatus(int cmd, float velocity, float dutyCycle)
+{
+  char buf[12];
+
+  buf[0] = 0xff;			// start byte 1
+  buf[1] = 0xff;			// start byte 2
+  buf[2] = cmd;				// command
+  buf[3] = ((char *)(&velocity))[0];	
+  buf[4] = ((char *)(&velocity))[1];
+  buf[5] = ((char *)(&velocity))[2];
+  buf[6] = ((char *)(&velocity))[3];
+  buf[7] = ((char *)(&dutyCycle))[0];
+  buf[8] = ((char *)(&dutyCycle))[1];
+  buf[9] = ((char *)(&dutyCycle))[2];
+  buf[10] = ((char *)(&dutyCycle))[3];
+  buf[11] = 1;			// checksum
+
+  for (int i = 0; i < 12; i++)
+    UARTCharPut(UART0_BASE, buf[i]);
+}
+
+
+int readCmd(int *cmd, float *velocity)
+{
+  static int i, c;
+  static char buf[8];
+
+  if ((c = UARTCharGetNonBlocking(UART0_BASE)) != -1)
+    buf[i++] = c;
+  
+  if (i == 8) {
+    i = 0;
+    *cmd = buf[2];
+    *velocity = *((float *)(&buf[3]));
+  }
+  return 0;
+}
+
+
+int main(void)
+{
+  setup();
+
+  float realVelocity, targetVelocity, dutyCycle;
+  int cmd;
+
+  while (1) {
+    realVelocity = encoderGetVelocity();
+
+    if (cmd == CMD_STOP)
+      setPWM(0);
+    else if (cmd == CMD_OPENLOOP) {
+      setPWM(dutyCycle);
+      sendStatus(cmd, realVelocity, dutyCycle);
+    }
+    else if (cmd == CMD_CLOSEDLOOP) {
+      dutyCycle = doPID(realVelocity, targetVelocity);
+      setPWM(dutyCycle);
+      sendStatus(cmd, realVelocity, dutyCycle);
+    }
+
+    readCmd(&cmd, &targetVelocity);
+    sendStatus(cmd, targetVelocity, dutyCycle);
+
+    // replace this with sleep until timer interrupt
+    delay(1000);
   }
 }

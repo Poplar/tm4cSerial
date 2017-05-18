@@ -51,7 +51,7 @@ def main():
     global mode 
     global openspd
     global closed
-    strPort = '/dev/ttyACM0'
+    strPort = '/dev/icdi'
     #try: 
     ser = serial.Serial(port=strPort,baudrate=115200,timeout=.1)
     #except:
@@ -78,6 +78,10 @@ def main():
     #first loop
     #for x in range(1, 30000): #reads in 100 data points.
     #ser.write(send_data)
+
+    # UnboundLocalError is occuring on vel
+    vel = 0
+    
     while(startflag == False): #waits for input from kbd thread
        pass 
     while(stopflag == False): 
@@ -88,13 +92,15 @@ def main():
                 if(mode == 2):
                     speedin = closed
                     startflag = False
+                    
             #####UNCOMMENT THIS LINE, COMMENT NEXT######
             #ser.write(struct.pack('>BBBfB', 255,255,1, speedin, 253))
-                ser.write(struct.pack('>BBBffB',255,255,1,speedin,(2*speedin), 253))
+            ser.write(struct.pack('>BBBffB',255,255,1,speedin,(2*speedin), 253))
             line = ser.read(size=12)
             #line = ser.read(size=12) #for 2 floats
-            print(line)
+            print(line.encode('hex'))
             sleep(.1)
+            
             while(len(line) < 12):
                 if(stopflag == True):
                     print("Interrupted by keyboard input")
