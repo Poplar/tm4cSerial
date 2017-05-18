@@ -1,8 +1,9 @@
 #define PART_TM4C1294NCPDT
 #include "inc/tm4c1294ncpdt.h"
+
 #include <stdint.h>
 #include <stdbool.h>
-#include "inc/hw_ints.h"
+
 #include "inc/hw_memmap.h"
 #include "driverlib/debug.h"
 #include "driverlib/gpio.h"
@@ -22,26 +23,37 @@ __error__(char *pcFilename, uint32_t ui32Line)
 }
 #endif
 
-  void
-UARTIntHandler(void)
+
+void UARTSend(const uint8_t *pui8Buffer, uint32_t ui32Count)
+{
+  // Loop while there are more characters to send.
+  while(ui32Count--)
+  {
+    // Write the next character to the UART.
+    UARTCharPutNonBlocking(UART0_BASE, *pui8Buffer++);
+  }
+}
+
+
+void UARTIntHandler(void)
 {
   uint32_t ui32Status;
-  uint32_t buff[100];
+  uint8_t buff[100];
   uint32_t index = 0,size;
   // Get the interrrupt status.
   ui32Status = UARTIntStatus(UART0_BASE, true);
 
   // Clear the asserted interrupts.
-  uartintclear(UART0_base, ui32status);
+  UARTIntClear(UART0_BASE, ui32Status);
 
   // loop while there are characters in the receive fifo.
-  while(uartcharsavail(uart0_base))
+  while(UARTCharsAvail(UART0_BASE))
   {
     // read the next character from the uart and write it back to the uart.
 /*    uartcharputnonblocking(uart0_base,
         uartchargetnonblocking(uart0_base)); */ //important part
     
-    buff[index] = uartchargetnonblocking(uart0_base);
+    buff[index] = UARTCharGetNonBlocking(UART0_BASE);
     index++;
     size++;
     /* blink led on receive; use for debug only
@@ -55,16 +67,6 @@ UARTIntHandler(void)
   index = 0;
 }
 
-  void
-UARTSend(const uint8_t *pui8Buffer, uint32_t ui32Count)
-{
-  // Loop while there are more characters to send.
-  while(ui32Count--)
-  {
-    // Write the next character to the UART.
-    UARTCharPutNonBlocking(UART0_BASE, *pui8Buffer++);
-  }
-}
 
 int main(void)
 {
