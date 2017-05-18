@@ -52,14 +52,11 @@ def main():
                 print(send_data)
                 print('\n')
                 print("Error: not enough bytes sent in 50 ms\n")
-                
-                line = ser.read(size=6)
-            #if(line[0] == 255 and line[1] == 255):
-#            print(line)
+                line = ser.read(size=8)
+
             if(ord(line[0]) == 255 and ord(line[1]) == 255):
                 cmd = line[2]
                 #pwmin = (line[3] << 4) + line[4]
-                #pwmin = struct.unpack('>f', line[3:-1])
                 pwmin = struct.unpack('>f', line[3:-1])
                 print(pwmin)
 
