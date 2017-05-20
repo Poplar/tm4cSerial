@@ -73,7 +73,7 @@ float doPID(float realVelocity, float targetVelocity)
   return 0;
 }
 
-enum { CMD_STOP, CMD_CLOSEDLOOP, CMD_OPENLOOP };
+enum { CMD_NONE, CMD_STOP, CMD_CLOSEDLOOP, CMD_OPENLOOP };
 
 float encoderGetVelocity(void)
 {
@@ -88,20 +88,20 @@ void setPWM(float dutyCycle)
 
 void sendStatus(int cmd, float velocity, float dutyCycle)
 {
-  char buf[12];
+  uint8_t buf[12];
 
   buf[0] = 0xff;			// start byte 1
   buf[1] = 0xff;			// start byte 2
   buf[2] = cmd;				// command
-  buf[3] = ((char *)(&velocity))[0];	
-  buf[4] = ((char *)(&velocity))[1];
-  buf[5] = ((char *)(&velocity))[2];
-  buf[6] = ((char *)(&velocity))[3];
-  buf[7] = ((char *)(&dutyCycle))[0];
-  buf[8] = ((char *)(&dutyCycle))[1];
-  buf[9] = ((char *)(&dutyCycle))[2];
-  buf[10] = ((char *)(&dutyCycle))[3];
-  buf[11] = 1;			// checksum
+  buf[3] = ((uint8_t *)&velocity)[0];	
+  buf[4] = ((uint8_t *)&velocity)[1];
+  buf[5] = ((uint8_t *)&velocity)[2];
+  buf[6] = ((uint8_t *)&velocity)[3];
+  buf[7] = ((uint8_t *)&dutyCycle)[0];
+  buf[8] = ((uint8_t *)&dutyCycle)[1];
+  buf[9] = ((uint8_t *)&dutyCycle)[2];
+  buf[10] = ((uint8_t *)&dutyCycle)[3];
+  buf[11] = 0xcc;			// checksum
 
   for (int i = 0; i < 12; i++)
     UARTCharPut(UART0_BASE, buf[i]);
@@ -110,6 +110,8 @@ void sendStatus(int cmd, float velocity, float dutyCycle)
 
 int readCmd(int *cmd, float *velocity)
 {
+  static uint8_t led = GPIO_PIN_0;
+  
   static int i, c;
   static char buf[8];
 
@@ -119,8 +121,13 @@ int readCmd(int *cmd, float *velocity)
   if (i == 8) {
     i = 0;
     *cmd = buf[2];
-    *velocity = *((float *)(&buf[3]));
+    *velocity = *((float *)&(buf[3]));
+
+    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, led);
+    led ^= GPIO_PIN_0;
+    return 1;
   }
+
   return 0;
 }
 
@@ -130,8 +137,10 @@ int main(void)
   setup();
 
   float realVelocity, targetVelocity, dutyCycle;
-  int cmd;
+  int rv, cmd = CMD_STOP;
 
+  targetVelocity = 21.3;
+  
   while (1) {
     realVelocity = encoderGetVelocity();
 
@@ -139,18 +148,20 @@ int main(void)
       setPWM(0);
     else if (cmd == CMD_OPENLOOP) {
       setPWM(dutyCycle);
-      sendStatus(cmd, realVelocity, dutyCycle);
+      sendStatus(cmd, targetVelocity, dutyCycle);
     }
     else if (cmd == CMD_CLOSEDLOOP) {
       dutyCycle = doPID(realVelocity, targetVelocity);
       setPWM(dutyCycle);
-      sendStatus(cmd, realVelocity, dutyCycle);
+      sendStatus(cmd, targetVelocity, dutyCycle);
     }
 
-    readCmd(&cmd, &targetVelocity);
-    sendStatus(cmd, targetVelocity, dutyCycle);
+    rv = readCmd(&cmd, &targetVelocity);
+    if (rv == 1 && cmd == CMD_STOP)
+      sendStatus(cmd, targetVelocity, dutyCycle);
 
     // replace this with sleep until timer interrupt
-    delay(1000);
+    // delay(2000000);
+    delay(2000);
   }
 }

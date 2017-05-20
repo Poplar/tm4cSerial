@@ -95,18 +95,18 @@ def main():
                     
             #####UNCOMMENT THIS LINE, COMMENT NEXT######
             #ser.write(struct.pack('>BBBfB', 255,255,1, speedin, 253))
-            ser.write(struct.pack('>BBBffB',255,255,1,speedin,(2*speedin), 253))
+            ser.write(struct.pack('>BBBffB',255,255,2,speedin,(2*speedin), 253))
             line = ser.read(size=12)
             #line = ser.read(size=12) #for 2 floats
             print(line.encode('hex'))
-            sleep(.1)
+#            sleep(.1)
             
             while(len(line) < 12):
                 if(stopflag == True):
                     print("Interrupted by keyboard input")
                     break
-                ser.write(struct.pack('>BBBffB',255,255,1,speedin,(2*speedin), 253))
-                print(line)
+                ser.write(struct.pack('>BBBffB',255,255,2,speedin,(2*speedin), 253))
+                print(line.encode('hex'))
    #             print(send_data)
                 print("Error: not enough bytes sent in 50 ms")
                 line = ser.read(size=12)
